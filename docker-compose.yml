@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  mssql:
+    container_name: mssql
+    image: mcr.microsoft.com/azure-sql-edge
+    environment:
+      MSSQL_SA_PASSWORD: "PassWord4mssql.1!"
+      ACCEPT_EULA: 1
+    ports:
+      - 1433:1433
+    volumes:
+      - mssql-volume:/var/opt/mssql
+
+  somethingmigrator:
+    container_name: somethingmigrator
+    image: ${DOCKER_REGISTRY-}somethingmigrator
+    build:
+      context: .
+      dockerfile: src/Something.Migrator/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+    depends_on:
+      - "mssql"
+
+  somethingwebhost:
+    container_name: somethingwebhost
+    restart: always
+    image: ${DOCKER_REGISTRY-}somethingwebhost
+    build:
+      context: .
+      dockerfile: src/Something.Web.Host/Dockerfile
+    ports:
+      - 44311:44311
+    environment:
+      - ASPNETCORE_URLS=https://0.0.0.0:44311
+      - ASPNETCORE_HTTPS_PORT=44311
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+    volumes:
+      - "./Docker-Logs:/app/App_Data/Logs"
+    depends_on:
+      - "mssql"
+      - "somethingmigrator"
+
+volumes:
+  mssql-volume:
